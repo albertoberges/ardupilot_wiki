@@ -62,6 +62,7 @@ export function useAuth() {
 
   async function signInWithGoogle() {
     const redirectUrl = Linking.createURL("/");
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -74,7 +75,11 @@ export function useAuth() {
     if (error) throw error;
     if (!data.url) return;
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+    // New Supabase infrastructure requires apikey even on auth endpoints
+    const separator = data.url.includes("?") ? "&" : "?";
+    const urlWithKey = `${data.url}${separator}apikey=${encodeURIComponent(anonKey)}`;
+
+    const result = await WebBrowser.openAuthSessionAsync(urlWithKey, redirectUrl);
 
     if (result.type === "success") {
       const { error } = await supabase.auth.exchangeCodeForSession(result.url);
