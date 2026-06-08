@@ -1,10 +1,10 @@
 import { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Callout } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useIncidencias } from "@/hooks/useIncidencias";
-import { CategoriaIncidencia, EstadoIncidencia } from "@/lib/types";
+import { EstadoIncidencia } from "@/lib/types";
 import { CategoryColors, Colors } from "@/constants/colors";
 import { CategoryLabels } from "@/lib/labels";
 
@@ -42,7 +42,6 @@ export default function MapaScreen() {
       <MapView
         ref={mapRef}
         className="flex-1"
-        provider={PROVIDER_GOOGLE}
         initialRegion={REGION_INICIAL}
         showsUserLocation
         showsMyLocationButton

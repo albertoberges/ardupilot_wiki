@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
+import { useLayoutEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useIncidencias } from "@/hooks/useIncidencias";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,9 +18,20 @@ const filtrosEstado: { label: string; value: EstadoIncidencia | undefined }[] = 
 
 export default function IncidenciasScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [estadoActivo, setEstadoActivo] = useState<EstadoIncidencia | undefined>(undefined);
   const [soloMias, setSoloMias] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => router.push("/(tabs)/mapa")} className="mr-3">
+          <Ionicons name="map-outline" size={22} color="#fff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const { incidencias, loading, refreshing, refresh } = useIncidencias({
     estado: estadoActivo,
