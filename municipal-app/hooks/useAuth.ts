@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Alert } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
@@ -72,7 +73,10 @@ export function useAuth() {
       },
     });
 
-    if (error) throw error;
+    if (error) { Alert.alert("Error signInWithOAuth", error.message); throw error; }
+
+    Alert.alert("URL OAuth", data.url ?? "null — provider no configurado en Supabase");
+
     if (!data.url) return;
 
     // New Supabase infrastructure requires apikey even on auth endpoints
