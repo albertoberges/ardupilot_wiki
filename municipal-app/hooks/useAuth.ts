@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
 import { Profile } from "@/lib/types";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -56,9 +60,31 @@ export function useAuth() {
     }
   }
 
+  async function signInWithGoogle() {
+    const redirectUrl = Linking.createURL("/");
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) throw error;
+    if (!data.url) return;
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+    if (result.type === "success") {
+      const { error } = await supabase.auth.exchangeCodeForSession(result.url);
+      if (error) throw error;
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
 
-  return { session, user, profile, loading, signIn, signUp, signOut };
+  return { session, user, profile, loading, signIn, signUp, signOut, signInWithGoogle };
 }

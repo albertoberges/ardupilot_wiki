@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Colors } from "@/constants/colors";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const [modo, setModo] = useState<"login" | "registro">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [apellidos, setApellidos] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -40,32 +41,88 @@ export default function AuthScreen() {
     }
   };
 
+  const handleGoogle = async () => {
+    setLoadingGoogle(true);
+    try {
+      await signInWithGoogle();
+      router.back();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo iniciar sesión con Google.");
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      style={{ flex: 1, backgroundColor: "#fff" }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* Header */}
-        <View className="bg-primary px-6 pt-16 pb-12 items-center">
-          <Text className="text-white text-3xl font-bold">Mi Pueblo</Text>
-          <Text className="text-white/70 text-sm mt-1">Conecta con tu comunidad</Text>
+        <View style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingTop: 64, paddingBottom: 48, alignItems: "center" }}>
+          <Text style={{ color: "#fff", fontSize: 28, fontFamily: "Inter_700Bold" }}>Mi Pueblo</Text>
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 4 }}>Conecta con tu comunidad</Text>
         </View>
 
-        <View className="px-6 pt-8">
+        <View style={{ paddingHorizontal: 24, paddingTop: 32 }}>
+          {/* Botón Google */}
+          <TouchableOpacity
+            onPress={handleGoogle}
+            disabled={loadingGoogle}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 1.5,
+              borderColor: "#e0e0e0",
+              borderRadius: 12,
+              paddingVertical: 14,
+              marginBottom: 20,
+              backgroundColor: "#fff",
+              opacity: loadingGoogle ? 0.7 : 1,
+            }}
+          >
+            {loadingGoogle ? (
+              <ActivityIndicator size="small" color="#4285F4" />
+            ) : (
+              <>
+                <View style={{
+                  width: 22, height: 22, borderRadius: 11,
+                  backgroundColor: "#4285F4", alignItems: "center",
+                  justifyContent: "center", marginRight: 10,
+                }}>
+                  <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 }}>G</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#333" }}>
+                  Continuar con Google
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Separador */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: "#e0e0e0" }} />
+            <Text style={{ marginHorizontal: 12, color: "#999", fontSize: 13 }}>o con email</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: "#e0e0e0" }} />
+          </View>
+
           {/* Selector login/registro */}
-          <View className="flex-row bg-gray-100 rounded-xl p-1 mb-6">
+          <View style={{ flexDirection: "row", backgroundColor: "#f3f4f6", borderRadius: 12, padding: 4, marginBottom: 24 }}>
             {(["login", "registro"] as const).map((m) => (
               <TouchableOpacity
                 key={m}
-                className="flex-1 py-2.5 rounded-lg items-center"
-                style={{ backgroundColor: modo === m ? "#fff" : "transparent" }}
+                style={{
+                  flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
+                  backgroundColor: modo === m ? "#fff" : "transparent",
+                }}
                 onPress={() => setModo(m)}
               >
-                <Text
-                  className="font-semibold text-sm"
-                  style={{ color: modo === m ? Colors.primary : Colors.textSecondary }}
-                >
+                <Text style={{
+                  fontFamily: "Inter_600SemiBold", fontSize: 14,
+                  color: modo === m ? Colors.primary : "#9ca3af",
+                }}>
                   {m === "login" ? "Iniciar sesión" : "Registrarse"}
                 </Text>
               </TouchableOpacity>
@@ -74,20 +131,20 @@ export default function AuthScreen() {
 
           {modo === "registro" && (
             <>
-              <View className="mb-4">
-                <Text className="text-gray-700 font-medium mb-1.5">Nombre</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#374151", fontFamily: "Inter_500Medium", marginBottom: 6 }}>Nombre</Text>
                 <TextInput
-                  className="border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50"
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827" }}
                   placeholder="Tu nombre"
                   value={nombre}
                   onChangeText={setNombre}
                   autoCapitalize="words"
                 />
               </View>
-              <View className="mb-4">
-                <Text className="text-gray-700 font-medium mb-1.5">Apellidos</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#374151", fontFamily: "Inter_500Medium", marginBottom: 6 }}>Apellidos</Text>
                 <TextInput
-                  className="border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50"
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827" }}
                   placeholder="Tus apellidos"
                   value={apellidos}
                   onChangeText={setApellidos}
@@ -97,10 +154,10 @@ export default function AuthScreen() {
             </>
           )}
 
-          <View className="mb-4">
-            <Text className="text-gray-700 font-medium mb-1.5">Email</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: "#374151", fontFamily: "Inter_500Medium", marginBottom: 6 }}>Email</Text>
             <TextInput
-              className="border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50"
+              style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827" }}
               placeholder="tu@email.com"
               value={email}
               onChangeText={setEmail}
@@ -109,10 +166,10 @@ export default function AuthScreen() {
             />
           </View>
 
-          <View className="mb-6">
-            <Text className="text-gray-700 font-medium mb-1.5">Contraseña</Text>
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ color: "#374151", fontFamily: "Inter_500Medium", marginBottom: 6 }}>Contraseña</Text>
             <TextInput
-              className="border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-gray-50"
+              style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827" }}
               placeholder="••••••••"
               value={password}
               onChangeText={setPassword}
@@ -121,18 +178,17 @@ export default function AuthScreen() {
           </View>
 
           <TouchableOpacity
-            className="bg-primary rounded-xl py-4 items-center"
-            style={{ opacity: loading ? 0.7 : 1 }}
+            style={{ backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: "center", opacity: loading ? 0.7 : 1 }}
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text className="text-white font-bold text-base">
+            <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 16 }}>
               {loading ? "..." : modo === "login" ? "Iniciar sesión" : "Crear cuenta"}
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="mt-4 py-3 items-center" onPress={() => router.back()}>
-            <Text className="text-gray-500 text-sm">Continuar sin cuenta</Text>
+          <TouchableOpacity style={{ marginTop: 16, paddingVertical: 12, alignItems: "center" }} onPress={() => router.back()}>
+            <Text style={{ color: "#9ca3af", fontSize: 14 }}>Continuar sin cuenta</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
