@@ -79,6 +79,7 @@ export function useAuth() {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
     if (result.type === "success") {
+      Alert.alert("Callback URL (debug)", result.url);
       const { error } = await supabase.auth.exchangeCodeForSession(result.url);
       if (error) throw error;
     }
