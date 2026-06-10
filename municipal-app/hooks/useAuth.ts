@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
+
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
@@ -63,7 +64,6 @@ export function useAuth() {
 
   async function signInWithGoogle() {
     const redirectUrl = Linking.createURL("/");
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -73,17 +73,10 @@ export function useAuth() {
       },
     });
 
-    if (error) { Alert.alert("Error signInWithOAuth", error.message); throw error; }
-
-    Alert.alert("URL OAuth", data.url ?? "null — provider no configurado en Supabase");
-
+    if (error) { Alert.alert("Error", error.message); throw error; }
     if (!data.url) return;
 
-    // New Supabase infrastructure requires apikey even on auth endpoints
-    const separator = data.url.includes("?") ? "&" : "?";
-    const urlWithKey = `${data.url}${separator}apikey=${encodeURIComponent(anonKey)}`;
-
-    const result = await WebBrowser.openAuthSessionAsync(urlWithKey, redirectUrl);
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
     if (result.type === "success") {
       const { error } = await supabase.auth.exchangeCodeForSession(result.url);
