@@ -39,11 +39,14 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     });
   }
 
-  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+  } catch {
+    return null;
+  }
 
-  // Guardar token en el perfil del usuario
   await supabase.from("profiles").update({ push_token: token }).eq("id", userId);
-
   return token;
 }
 

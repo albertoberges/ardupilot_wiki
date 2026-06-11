@@ -13,10 +13,10 @@ import { CategoryLabels } from "@/lib/labels";
 import { CategoriaIncidencia } from "@/lib/types";
 
 const REGION_INICIAL = {
-  latitude: 41.748,
-  longitude: -0.841,
-  latitudeDelta: 0.012,
-  longitudeDelta: 0.012,
+  latitude: 41.784,
+  longitude: -0.814,
+  latitudeDelta: 0.010,
+  longitudeDelta: 0.010,
 };
 
 const MAPA_TIPOS: { tipo: MapType; icon: string; label: string }[] = [
