@@ -1,20 +1,23 @@
 import { useState, useRef } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, MapType } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useLugares } from "@/hooks/useLugares";
 import { useIncidencias } from "@/hooks/useIncidencias";
 import { Colors, CategoryColors } from "@/constants/colors";
 
-// Cambia estas coordenadas por las de tu municipio
 const REGION_INICIAL = {
-  latitude: 40.4168,
-  longitude: -3.7038,
-  latitudeDelta: 0.015,
-  longitudeDelta: 0.015,
+  latitude: 41.705,
+  longitude: -0.883,
+  latitudeDelta: 0.01,
+  longitudeDelta: 0.01,
 };
 
-const LUGAR_CONFIG: Record<string, { color: string; icon: string }> = {
+const MAPA_TIPOS: { tipo: MapType; icon: string; label: string }[] = [
+  { tipo: "standard",      icon: "map-outline",      label: "Normal"    },
+  { tipo: "hybrid",        icon: "satellite-outline", label: "Satélite"  },
+  { tipo: "hybridFlyover", icon: "cube-outline",      label: "3D"        },
+];
   ayuntamiento:  { color: "#1d4ed8", icon: "business" },
   iglesia:       { color: "#92400e", icon: "triangle" },
   parque:        { color: "#15803d", icon: "leaf" },
@@ -33,6 +36,8 @@ export default function MapaScreen() {
   const mapRef = useRef<MapView>(null);
   const [capa, setCapa] = useState<Capa>("lugares");
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
+  const [tipoMapaIdx, setTipoMapaIdx] = useState(0);
+  const tipoMapa = MAPA_TIPOS[tipoMapaIdx];
 
   const { lugares } = useLugares();
   const { incidencias } = useIncidencias();
@@ -50,6 +55,7 @@ export default function MapaScreen() {
         ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={REGION_INICIAL}
+        mapType={tipoMapa.tipo}
         showsUserLocation
         showsMyLocationButton
         showsBuildings
@@ -124,6 +130,23 @@ export default function MapaScreen() {
       </View>
 
       {/* Tarjeta de lugar seleccionado */}
+      {/* Botón tipo de mapa */}
+      <TouchableOpacity
+        onPress={() => setTipoMapaIdx((tipoMapaIdx + 1) % MAPA_TIPOS.length)}
+        style={{
+          position: "absolute", top: 12, right: 12,
+          backgroundColor: "#fff", borderRadius: 14,
+          paddingHorizontal: 12, paddingVertical: 9,
+          flexDirection: "row", alignItems: "center", gap: 6,
+          shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
+        }}
+      >
+        <Ionicons name={tipoMapa.icon as any} size={16} color={Colors.primary} />
+        <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.primary }}>
+          {tipoMapa.label}
+        </Text>
+      </TouchableOpacity>
+
       {lugarActivo && (
         <View style={{
           position: "absolute", bottom: 24, left: 16, right: 16,
