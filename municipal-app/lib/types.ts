@@ -7,6 +7,7 @@ export interface Profile {
   apellidos: string;
   telefono?: string;
   role: UserRole;
+  nombre_organizacion?: string;
   avatar_url?: string;
   push_token?: string;
   created_at: string;

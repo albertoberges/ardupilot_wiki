@@ -22,10 +22,12 @@ export default function AuthScreen() {
   const [apellidos, setApellidos] = useState("");
   const [rol, setRol] = useState<UserRole>("ciudadano");
   const [codigo, setCodigo] = useState("");
+  const [nombreOrg, setNombreOrg] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const necesitaCodigo = rol !== "ciudadano";
+  const necesitaNombreOrg = rol === "asociacion" || rol === "empresa";
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -42,12 +44,17 @@ export default function AuthScreen() {
           setLoading(false);
           return;
         }
+        if (necesitaNombreOrg && !nombreOrg.trim()) {
+          Alert.alert("Error", `Introduce el nombre de la ${rol === "asociacion" ? "asociación" : "empresa"}.`);
+          setLoading(false);
+          return;
+        }
         if (necesitaCodigo && !codigo.trim()) {
           Alert.alert("Error", "Introduce el código de acceso para este tipo de cuenta.");
           setLoading(false);
           return;
         }
-        await signUp(email, password, nombre, apellidos, rol, codigo.trim() || undefined);
+        await signUp(email, password, nombre, apellidos, rol, codigo.trim() || undefined, nombreOrg.trim() || undefined);
         Alert.alert("¡Registro completado!", "Verifica tu email para activar la cuenta.");
       }
       router.back();
@@ -131,7 +138,7 @@ export default function AuthScreen() {
                 {ROLES.map((r) => (
                   <TouchableOpacity
                     key={r.value}
-                    onPress={() => { setRol(r.value); setCodigo(""); }}
+                    onPress={() => { setRol(r.value); setCodigo(""); setNombreOrg(""); }}
                     style={{
                       paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5,
                       borderColor: rol === r.value ? Colors.primary : "#e5e7eb",
@@ -169,6 +176,21 @@ export default function AuthScreen() {
                   autoCapitalize="words"
                 />
               </View>
+
+              {necesitaNombreOrg && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ color: "#374151", fontFamily: "Inter_500Medium", marginBottom: 6 }}>
+                    {rol === "asociacion" ? "Nombre de la asociación" : "Nombre de la empresa"}
+                  </Text>
+                  <TextInput
+                    style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827" }}
+                    placeholder={rol === "asociacion" ? "Ej: Asociación de Vecinos" : "Ej: Panadería García"}
+                    value={nombreOrg}
+                    onChangeText={setNombreOrg}
+                    autoCapitalize="words"
+                  />
+                </View>
+              )}
 
               {necesitaCodigo && (
                 <View style={{ marginBottom: 16, backgroundColor: "#fffbeb", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#fcd34d" }}>

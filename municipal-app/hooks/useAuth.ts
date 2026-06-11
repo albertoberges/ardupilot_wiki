@@ -48,7 +48,7 @@ export function useAuth() {
     if (error) throw error;
   }
 
-  async function signUp(email: string, password: string, nombre: string, apellidos: string, role = "ciudadano", codigo?: string) {
+  async function signUp(email: string, password: string, nombre: string, apellidos: string, role = "ciudadano", codigo?: string, nombre_organizacion?: string) {
     if (role !== "ciudadano" && codigo) {
       const { data: valid, error: codeError } = await supabase.rpc("validar_codigo", {
         p_codigo: codigo,
@@ -60,7 +60,7 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nombre, apellidos, role } },
+      options: { data: { nombre, apellidos, role, nombre_organizacion } },
     });
     if (error) throw error;
   }
@@ -102,5 +102,5 @@ export function useAuth() {
     await supabase.auth.signOut();
   }
 
-  return { session, user, profile, loading, signIn, signUp, signOut, signInWithGoogle };
+  return { session, user, profile, loading, signIn, signUp, signOut, signInWithGoogle, fetchProfile };
 }
