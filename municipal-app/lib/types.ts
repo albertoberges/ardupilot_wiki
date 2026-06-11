@@ -139,3 +139,30 @@ export interface VotoIncidencia {
   user_id: string;
   created_at: string;
 }
+
+export type CategoriaLugar =
+  | "ayuntamiento"
+  | "iglesia"
+  | "parque"
+  | "colegio"
+  | "farmacia"
+  | "polideportivo"
+  | "plaza"
+  | "mercado"
+  | "museo"
+  | "otro";
+
+export interface Lugar {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  categoria: CategoriaLugar;
+  latitud: number;
+  longitud: number;
+  direccion?: string;
+  horario?: string;
+  telefono?: string;
+  imagen_url?: string;
+  activo: boolean;
+  created_at: string;
+}

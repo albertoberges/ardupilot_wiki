@@ -1,160 +1,241 @@
 import { useState, useRef } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Dimensions } from "react-native";
-import { useRouter } from "expo-router";
-import MapView, { Marker, Callout } from "react-native-maps";
+import { View, Text, TouchableOpacity } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import { useLugares } from "@/hooks/useLugares";
 import { useIncidencias } from "@/hooks/useIncidencias";
-import { EstadoIncidencia } from "@/lib/types";
-import { CategoryColors, Colors } from "@/constants/colors";
-import { CategoryLabels } from "@/lib/labels";
+import { Colors, CategoryColors } from "@/constants/colors";
 
-const { height } = Dimensions.get("window");
-
-const ESTADO_FILTROS: { label: string; value: EstadoIncidencia | undefined; color: string }[] = [
-  { label: "Todas", value: undefined, color: Colors.primary },
-  { label: "Pendiente", value: "pendiente", color: CategoryColors.pendiente },
-  { label: "En proceso", value: "en_proceso", color: CategoryColors.en_proceso },
-  { label: "Resuelta", value: "resuelta", color: CategoryColors.resuelta },
-];
-
-// Coordenadas del pueblo (ajusta a tu municipio)
+// Cambia estas coordenadas por las de tu municipio
 const REGION_INICIAL = {
   latitude: 40.4168,
   longitude: -3.7038,
-  latitudeDelta: 0.02,
-  longitudeDelta: 0.02,
+  latitudeDelta: 0.015,
+  longitudeDelta: 0.015,
 };
 
+const LUGAR_CONFIG: Record<string, { color: string; icon: string }> = {
+  ayuntamiento:  { color: "#1d4ed8", icon: "business" },
+  iglesia:       { color: "#92400e", icon: "triangle" },
+  parque:        { color: "#15803d", icon: "leaf" },
+  colegio:       { color: "#ea580c", icon: "school" },
+  farmacia:      { color: "#dc2626", icon: "medical" },
+  polideportivo: { color: "#0369a1", icon: "basketball" },
+  plaza:         { color: "#7c3aed", icon: "compass" },
+  mercado:       { color: "#d97706", icon: "basket" },
+  museo:         { color: "#b45309", icon: "book" },
+  otro:          { color: "#6b7280", icon: "location" },
+};
+
+type Capa = "lugares" | "incidencias";
+
 export default function MapaScreen() {
-  const router = useRouter();
   const mapRef = useRef<MapView>(null);
-  const [estadoActivo, setEstadoActivo] = useState<EstadoIncidencia | undefined>(undefined);
-  const [seleccionada, setSeleccionada] = useState<string | null>(null);
+  const [capa, setCapa] = useState<Capa>("lugares");
+  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
 
-  const { incidencias } = useIncidencias({ estado: estadoActivo });
-  const conCoordenadas = incidencias.filter((i) => i.latitud && i.longitud);
+  const { lugares } = useLugares();
+  const { incidencias } = useIncidencias();
 
-  const incidenciaActiva = seleccionada ? incidencias.find((i) => i.id === seleccionada) : null;
+  const lugarActivo = capa === "lugares" && seleccionadoId
+    ? lugares.find(l => l.id === seleccionadoId) ?? null
+    : null;
+  const incidenciaActiva = capa === "incidencias" && seleccionadoId
+    ? incidencias.find(i => i.id === seleccionadoId) ?? null
+    : null;
 
   return (
-    <View className="flex-1">
-      {/* Mapa */}
+    <View style={{ flex: 1 }}>
       <MapView
         ref={mapRef}
-        className="flex-1"
+        style={{ flex: 1 }}
         initialRegion={REGION_INICIAL}
         showsUserLocation
         showsMyLocationButton
+        showsBuildings
+        showsCompass
+        pitchEnabled
+        rotateEnabled
       >
-        {conCoordenadas.map((inc) => (
-          <Marker
-            key={inc.id}
-            coordinate={{ latitude: inc.latitud!, longitude: inc.longitud! }}
-            pinColor={CategoryColors[inc.estado] ?? Colors.danger}
-            onPress={() => setSeleccionada(inc.id)}
-          >
-            <Callout onPress={() => router.push(`/incidencia/${inc.id}`)}>
-              <View className="p-2 max-w-48">
-                <Text className="font-semibold text-gray-900 text-xs">{inc.titulo}</Text>
-                <Text className="text-gray-500 text-xs mt-0.5 capitalize">{inc.categoria} · {inc.estado.replace("_", " ")}</Text>
-                <Text className="text-blue-600 text-xs mt-1">Ver detalle →</Text>
+        {capa === "lugares" && lugares.map(lugar => {
+          const cfg = LUGAR_CONFIG[lugar.categoria] ?? LUGAR_CONFIG.otro;
+          return (
+            <Marker
+              key={lugar.id}
+              coordinate={{ latitude: lugar.latitud, longitude: lugar.longitud }}
+              onPress={() => setSeleccionadoId(lugar.id)}
+            >
+              <View style={{
+                width: 44, height: 44, borderRadius: 22,
+                backgroundColor: cfg.color,
+                alignItems: "center", justifyContent: "center",
+                borderWidth: 3, borderColor: "#fff",
+                shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
+              }}>
+                <Ionicons name={cfg.icon as any} size={20} color="#fff" />
               </View>
-            </Callout>
-          </Marker>
-        ))}
+            </Marker>
+          );
+        })}
+
+        {capa === "incidencias" && incidencias
+          .filter(i => i.latitud && i.longitud)
+          .map(inc => (
+            <Marker
+              key={inc.id}
+              coordinate={{ latitude: inc.latitud!, longitude: inc.longitud! }}
+              pinColor={CategoryColors[inc.estado] ?? Colors.danger}
+              onPress={() => setSeleccionadoId(inc.id)}
+            />
+          ))
+        }
       </MapView>
 
-      {/* Filtros flotantes */}
-      <View className="absolute top-3 left-0 right-0">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}
-        >
-          {ESTADO_FILTROS.map((f) => (
-            <TouchableOpacity
-              key={f.label}
-              className="px-4 py-2 rounded-full shadow-sm flex-row items-center gap-1.5"
-              style={{
-                backgroundColor: estadoActivo === f.value ? f.color : "#ffffffee",
-                elevation: 3,
-              }}
-              onPress={() => setEstadoActivo(f.value)}
-            >
-              <View
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: estadoActivo === f.value ? "#fff" : f.color }}
-              />
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: estadoActivo === f.value ? "#fff" : "#374151" }}
-              >
-                {f.label}
-              </Text>
-              {estadoActivo === f.value && (
-                <Text
-                  className="text-xs font-bold"
-                  style={{ color: "#ffffffcc" }}
-                >
-                  ({conCoordenadas.length})
-                </Text>
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      {/* Toggle de capas */}
+      <View style={{
+        position: "absolute", top: 12, alignSelf: "center",
+        flexDirection: "row",
+        backgroundColor: "#fff", borderRadius: 28, padding: 4,
+        shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+      }}>
+        {([
+          ["lugares",     "location",  "Lugares"],
+          ["incidencias", "warning",   "Incidencias"],
+        ] as [Capa, string, string][]).map(([val, icon, label]) => (
+          <TouchableOpacity
+            key={val}
+            onPress={() => { setCapa(val); setSeleccionadoId(null); }}
+            style={{
+              flexDirection: "row", alignItems: "center",
+              paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22,
+              backgroundColor: capa === val ? Colors.primary : "transparent",
+              gap: 6,
+            }}
+          >
+            <Ionicons name={icon as any} size={14} color={capa === val ? "#fff" : "#6b7280"} />
+            <Text style={{
+              fontSize: 13, fontFamily: "Inter_600SemiBold",
+              color: capa === val ? "#fff" : "#6b7280",
+            }}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+
+      {/* Tarjeta de lugar seleccionado */}
+      {lugarActivo && (
+        <View style={{
+          position: "absolute", bottom: 24, left: 16, right: 16,
+          backgroundColor: "#fff", borderRadius: 20, padding: 16,
+          shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
+        }}>
+          <TouchableOpacity
+            style={{ position: "absolute", top: 12, right: 12 }}
+            onPress={() => setSeleccionadoId(null)}
+          >
+            <Ionicons name="close-circle" size={22} color="#d1d5db" />
+          </TouchableOpacity>
+
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <View style={{
+              width: 46, height: 46, borderRadius: 14,
+              backgroundColor: (LUGAR_CONFIG[lugarActivo.categoria] ?? LUGAR_CONFIG.otro).color,
+              alignItems: "center", justifyContent: "center", marginRight: 12,
+            }}>
+              <Ionicons
+                name={(LUGAR_CONFIG[lugarActivo.categoria] ?? LUGAR_CONFIG.otro).icon as any}
+                size={22} color="#fff"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: "#111827" }}>
+                {lugarActivo.nombre}
+              </Text>
+              <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular", textTransform: "capitalize" }}>
+                {lugarActivo.categoria.replace(/_/g, " ")}
+              </Text>
+            </View>
+          </View>
+
+          {lugarActivo.descripcion && (
+            <Text style={{ fontSize: 13, color: "#4b5563", fontFamily: "Inter_400Regular", marginBottom: 10 }}>
+              {lugarActivo.descripcion}
+            </Text>
+          )}
+
+          {(lugarActivo.direccion || lugarActivo.horario || lugarActivo.telefono) && (
+            <View style={{ borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 10, gap: 6 }}>
+              {lugarActivo.direccion && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="location-outline" size={14} color="#6b7280" />
+                  <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular", flex: 1 }}>
+                    {lugarActivo.direccion}
+                  </Text>
+                </View>
+              )}
+              {lugarActivo.horario && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="time-outline" size={14} color="#6b7280" />
+                  <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular", flex: 1 }}>
+                    {lugarActivo.horario}
+                  </Text>
+                </View>
+              )}
+              {lugarActivo.telefono && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="call-outline" size={14} color="#6b7280" />
+                  <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular" }}>
+                    {lugarActivo.telefono}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Tarjeta de incidencia seleccionada */}
       {incidenciaActiva && (
-        <TouchableOpacity
-          className="absolute bottom-6 left-4 right-4 bg-white rounded-2xl p-4 shadow-lg"
-          style={{ elevation: 8 }}
-          onPress={() => router.push(`/incidencia/${incidenciaActiva.id}`)}
-          activeOpacity={0.9}
-        >
+        <View style={{
+          position: "absolute", bottom: 24, left: 16, right: 16,
+          backgroundColor: "#fff", borderRadius: 20, padding: 16,
+          shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
+        }}>
           <TouchableOpacity
-            className="absolute top-3 right-3"
-            onPress={() => setSeleccionada(null)}
+            style={{ position: "absolute", top: 12, right: 12 }}
+            onPress={() => setSeleccionadoId(null)}
           >
-            <Ionicons name="close-circle" size={20} color={Colors.textLight} />
+            <Ionicons name="close-circle" size={22} color="#d1d5db" />
           </TouchableOpacity>
-          <View
-            className="self-start px-2 py-0.5 rounded-full mb-2"
-            style={{ backgroundColor: CategoryColors[incidenciaActiva.estado] + "22" }}
-          >
-            <Text
-              className="text-xs font-semibold"
-              style={{ color: CategoryColors[incidenciaActiva.estado] }}
-            >
-              {CategoryLabels.estado[incidenciaActiva.estado]}
+          <View style={{
+            alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4,
+            borderRadius: 20, marginBottom: 8,
+            backgroundColor: (CategoryColors[incidenciaActiva.estado] ?? Colors.danger) + "22",
+          }}>
+            <Text style={{
+              fontSize: 11, fontFamily: "Inter_600SemiBold",
+              color: CategoryColors[incidenciaActiva.estado] ?? Colors.danger,
+              textTransform: "capitalize",
+            }}>
+              {incidenciaActiva.estado.replace(/_/g, " ")}
             </Text>
           </View>
-          <Text className="text-gray-900 font-semibold text-base pr-6">{incidenciaActiva.titulo}</Text>
+          <Text style={{ fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#111827", paddingRight: 28 }}>
+            {incidenciaActiva.titulo}
+          </Text>
           {incidenciaActiva.direccion_aproximada && (
-            <View className="flex-row items-center gap-1 mt-1">
-              <Ionicons name="location-outline" size={12} color={Colors.textSecondary} />
-              <Text className="text-gray-500 text-xs">{incidenciaActiva.direccion_aproximada}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <Ionicons name="location-outline" size={13} color="#6b7280" />
+              <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular" }}>
+                {incidenciaActiva.direccion_aproximada}
+              </Text>
             </View>
           )}
-          <View className="flex-row items-center justify-between mt-2">
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="thumbs-up-outline" size={13} color={Colors.textSecondary} />
-              <Text className="text-gray-500 text-xs">{incidenciaActiva.votos} apoyos</Text>
-            </View>
-            <Text className="text-primary text-xs font-medium">Ver detalle →</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+            <Ionicons name="thumbs-up-outline" size={13} color="#6b7280" />
+            <Text style={{ fontSize: 12, color: "#6b7280" }}>{incidenciaActiva.votos} apoyos</Text>
           </View>
-        </TouchableOpacity>
-      )}
-
-      {/* Leyenda compacta */}
-      {!incidenciaActiva && (
-        <View className="absolute bottom-6 right-4 bg-white rounded-xl p-3 shadow-md" style={{ elevation: 4 }}>
-          {Object.entries({ pendiente: "Pendiente", en_proceso: "En proceso", resuelta: "Resuelta" }).map(([key, label]) => (
-            <View key={key} className="flex-row items-center gap-2 mb-1 last:mb-0">
-              <View className="w-3 h-3 rounded-full" style={{ backgroundColor: CategoryColors[key] }} />
-              <Text className="text-gray-600 text-xs">{label}</Text>
-            </View>
-          ))}
         </View>
       )}
     </View>
