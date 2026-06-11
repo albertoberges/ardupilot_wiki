@@ -12,10 +12,11 @@ export function useLugares() {
       .select("*")
       .eq("activo", true)
       .order("nombre")
-      .then(({ data }) => {
-        setLugares(data ?? []);
+      .then(({ data, error }) => {
+        if (!error) setLugares(data ?? []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   return { lugares, loading };
