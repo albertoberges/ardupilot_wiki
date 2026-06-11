@@ -13,15 +13,15 @@ import { CategoryLabels } from "@/lib/labels";
 import { CategoriaIncidencia } from "@/lib/types";
 
 const REGION_INICIAL = {
-  latitude: 41.784,
-  longitude: -0.814,
-  latitudeDelta: 0.010,
-  longitudeDelta: 0.010,
+  latitude: 41.6871,
+  longitude: -0.7711,
+  latitudeDelta: 0.008,
+  longitudeDelta: 0.008,
 };
 
 const MAPA_TIPOS: { tipo: MapType; icon: string; label: string }[] = [
-  { tipo: "hybrid",        icon: "satellite-outline", label: "Satélite" },
   { tipo: "hybridFlyover", icon: "cube-outline",      label: "3D"       },
+  { tipo: "hybrid",        icon: "satellite-outline", label: "Satélite" },
   { tipo: "standard",      icon: "map-outline",       label: "Normal"   },
 ];
 
