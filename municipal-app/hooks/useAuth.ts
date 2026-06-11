@@ -48,18 +48,21 @@ export function useAuth() {
     if (error) throw error;
   }
 
-  async function signUp(email: string, password: string, nombre: string, apellidos: string) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (data.user) {
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        email,
-        nombre,
-        apellidos,
-        role: "ciudadano",
+  async function signUp(email: string, password: string, nombre: string, apellidos: string, role = "ciudadano", codigo?: string) {
+    if (role !== "ciudadano" && codigo) {
+      const { data: valid, error: codeError } = await supabase.rpc("validar_codigo", {
+        p_codigo: codigo,
+        p_role: role,
       });
+      if (codeError || !valid) throw new Error("Código de acceso incorrecto o no válido.");
     }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { nombre, apellidos, role } },
+    });
+    if (error) throw error;
   }
 
   async function signInWithGoogle() {

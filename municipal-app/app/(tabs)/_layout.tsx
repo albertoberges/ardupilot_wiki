@@ -28,52 +28,41 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Inicio",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
           headerTitle: "Mi Pueblo",
         }}
       />
       <Tabs.Screen
-        name="eventos"
+        name="agenda"
         options={{
-          title: "Eventos",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
-          ),
+          title: "Agenda",
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="tramites"
+        name="ayuntamiento"
         options={{
-          title: "Trámites",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="incidencias"
-        options={{
-          title: "Incidencias",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="warning" size={size} color={color} />
-          ),
+          title: "Ayuntamiento",
+          tabBarIcon: ({ color, size }) => <Ionicons name="business" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="mapa"
-        options={{ href: null }}
+        options={{
+          title: "Mapa",
+          tabBarIcon: ({ color, size }) => <Ionicons name="map" size={size} color={color} />,
+        }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="tramites" options={{ href: null }} />
+      <Tabs.Screen name="incidencias" options={{ href: null }} />
+      <Tabs.Screen name="eventos" options={{ href: null }} />
     </Tabs>
   );
 }
