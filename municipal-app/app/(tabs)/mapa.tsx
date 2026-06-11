@@ -5,12 +5,12 @@ import {
 } from "react-native";
 import MapView, { Marker, MapType } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { useLugares } from "@/hooks/useLugares";
+import { useLugares, crearLugar } from "@/hooks/useLugares";
 import { useIncidencias, crearIncidencia } from "@/hooks/useIncidencias";
 import { useAuth } from "@/hooks/useAuth";
 import { Colors, CategoryColors } from "@/constants/colors";
 import { CategoryLabels } from "@/lib/labels";
-import { CategoriaIncidencia } from "@/lib/types";
+import { CategoriaIncidencia, CategoriaLugar } from "@/lib/types";
 
 const REGION_INICIAL = {
   latitude: 41.6871,
@@ -38,7 +38,12 @@ const LUGAR_CONFIG: Record<string, { color: string; icon: string; label: string 
   otro:          { color: "#6b7280", icon: "location",    label: "Lugar de interés" },
 };
 
-const CATEGORIAS: CategoriaIncidencia[] = [
+const CATEGORIAS_LUGAR: CategoriaLugar[] = [
+  "ayuntamiento", "iglesia", "parque", "colegio", "farmacia",
+  "polideportivo", "plaza", "mercado", "museo", "otro",
+];
+
+const CATEGORIAS_INC: CategoriaIncidencia[] = [
   "viales", "alumbrado", "parques", "agua", "residuos", "edificios", "trafico", "otro",
 ];
 
@@ -46,12 +51,14 @@ type Capa = "lugares" | "incidencias";
 
 export default function MapaScreen() {
   const mapRef = useRef<MapView>(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const esAdmin = profile?.role === "ayuntamiento" || profile?.role === "admin";
 
   const [capa, setCapa] = useState<Capa>("lugares");
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
   const [tipoMapaIdx, setTipoMapaIdx] = useState(0);
 
+  // — Añadir incidencia —
   const [modoAnadir, setModoAnadir] = useState(false);
   const [coordNueva, setCoordNueva] = useState<{ latitude: number; longitude: number } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -61,9 +68,21 @@ export default function MapaScreen() {
   const [formDireccion, setFormDireccion] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // — Añadir lugar (solo admin/ayuntamiento) —
+  const [modoAnadirLugar, setModoAnadirLugar] = useState(false);
+  const [coordNuevaLugar, setCoordNuevaLugar] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [modalLugarVisible, setModalLugarVisible] = useState(false);
+  const [lugarNombre, setLugarNombre] = useState("");
+  const [lugarDesc, setLugarDesc] = useState("");
+  const [lugarCat, setLugarCat] = useState<CategoriaLugar>("otro");
+  const [lugarDir, setLugarDir] = useState("");
+  const [lugarHorario, setLugarHorario] = useState("");
+  const [lugarTel, setLugarTel] = useState("");
+  const [enviandoLugar, setEnviandoLugar] = useState(false);
+
   const tipoMapa = MAPA_TIPOS[tipoMapaIdx];
-  const { lugares } = useLugares();
-  const { incidencias, refresh } = useIncidencias();
+  const { lugares, refresh: refreshLugares } = useLugares();
+  const { incidencias, refresh: refreshInc } = useIncidencias();
 
   const lugarActivo = capa === "lugares" && seleccionadoId
     ? lugares.find(l => l.id === seleccionadoId) ?? null : null;
@@ -75,16 +94,18 @@ export default function MapaScreen() {
       setCoordNueva(e.nativeEvent.coordinate);
       setModoAnadir(false);
       setModalVisible(true);
+    } else if (capa === "lugares" && modoAnadirLugar) {
+      setCoordNuevaLugar(e.nativeEvent.coordinate);
+      setModoAnadirLugar(false);
+      setModalLugarVisible(true);
     } else {
       setSeleccionadoId(null);
     }
   };
 
+  // — Incidencias —
   const handleAnadir = () => {
-    if (!user) {
-      Alert.alert("Inicia sesión", "Necesitas una cuenta para reportar incidencias.");
-      return;
-    }
+    if (!user) { Alert.alert("Inicia sesión", "Necesitas una cuenta para reportar incidencias."); return; }
     setModoAnadir(v => !v);
     setSeleccionadoId(null);
   };
@@ -111,11 +132,43 @@ export default function MapaScreen() {
       });
       Alert.alert("¡Incidencia reportada!", "Tu reporte ha sido enviado al ayuntamiento.");
       resetForm();
-      refresh();
+      refreshInc();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo enviar la incidencia.");
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // — Lugares —
+  const resetFormLugar = () => {
+    setLugarNombre(""); setLugarDesc(""); setLugarCat("otro");
+    setLugarDir(""); setLugarHorario(""); setLugarTel("");
+    setCoordNuevaLugar(null); setModalLugarVisible(false);
+  };
+
+  const handleSubmitLugar = async () => {
+    if (!lugarNombre.trim()) { Alert.alert("Error", "El nombre es obligatorio."); return; }
+    if (!coordNuevaLugar) return;
+    setEnviandoLugar(true);
+    try {
+      await crearLugar({
+        nombre: lugarNombre.trim(),
+        descripcion: lugarDesc.trim() || undefined,
+        categoria: lugarCat,
+        latitud: coordNuevaLugar.latitude,
+        longitud: coordNuevaLugar.longitude,
+        direccion: lugarDir.trim() || undefined,
+        horario: lugarHorario.trim() || undefined,
+        telefono: lugarTel.trim() || undefined,
+      });
+      Alert.alert("¡Lugar añadido!", "El lugar ya aparece en el mapa.");
+      resetFormLugar();
+      refreshLugares();
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo añadir el lugar.");
+    } finally {
+      setEnviandoLugar(false);
     }
   };
 
@@ -136,6 +189,7 @@ export default function MapaScreen() {
       >
         {capa === "lugares" && lugares.map(lugar => {
           const cfg = LUGAR_CONFIG[lugar.categoria] ?? LUGAR_CONFIG.otro;
+          const seleccionado = seleccionadoId === lugar.id;
           return (
             <Marker
               key={lugar.id}
@@ -143,13 +197,19 @@ export default function MapaScreen() {
               onPress={() => setSeleccionadoId(lugar.id)}
             >
               <View style={{
-                width: 44, height: 44, borderRadius: 22,
+                width: seleccionado ? 54 : 44,
+                height: seleccionado ? 54 : 44,
+                borderRadius: seleccionado ? 27 : 22,
                 backgroundColor: cfg.color,
                 alignItems: "center", justifyContent: "center",
-                borderWidth: 3, borderColor: "#fff",
-                shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
+                borderWidth: seleccionado ? 4 : 3,
+                borderColor: "#fff",
+                shadowColor: seleccionado ? cfg.color : "#000",
+                shadowOpacity: seleccionado ? 0.9 : 0.3,
+                shadowRadius: seleccionado ? 12 : 4,
+                elevation: seleccionado ? 12 : 6,
               }}>
-                <Ionicons name={cfg.icon as any} size={20} color="#fff" />
+                <Ionicons name={cfg.icon as any} size={seleccionado ? 26 : 20} color="#fff" />
               </View>
             </Marker>
           );
@@ -167,9 +227,8 @@ export default function MapaScreen() {
           ))
         }
 
-        {coordNueva && (
-          <Marker coordinate={coordNueva} pinColor={Colors.primary} />
-        )}
+        {coordNueva && <Marker coordinate={coordNueva} pinColor={Colors.primary} />}
+        {coordNuevaLugar && <Marker coordinate={coordNuevaLugar} pinColor={Colors.secondary} />}
       </MapView>
 
       {/* Toggle capas */}
@@ -182,7 +241,7 @@ export default function MapaScreen() {
         {([ ["lugares", "location", "Lugares"], ["incidencias", "warning", "Incidencias"] ] as [Capa, string, string][]).map(([val, icon, label]) => (
           <TouchableOpacity
             key={val}
-            onPress={() => { setCapa(val); setSeleccionadoId(null); setModoAnadir(false); }}
+            onPress={() => { setCapa(val); setSeleccionadoId(null); setModoAnadir(false); setModoAnadirLugar(false); }}
             style={{
               flexDirection: "row", alignItems: "center",
               paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22,
@@ -214,7 +273,7 @@ export default function MapaScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* Botón añadir incidencia */}
+      {/* FAB añadir incidencia */}
       {capa === "incidencias" && (
         <TouchableOpacity
           onPress={handleAnadir}
@@ -230,7 +289,23 @@ export default function MapaScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Instrucción modo añadir */}
+      {/* FAB añadir lugar (solo admin/ayuntamiento) */}
+      {capa === "lugares" && esAdmin && (
+        <TouchableOpacity
+          onPress={() => { setModoAnadirLugar(v => !v); setSeleccionadoId(null); }}
+          style={{
+            position: "absolute", bottom: 32, right: 16,
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: modoAnadirLugar ? "#ef4444" : Colors.secondary,
+            alignItems: "center", justifyContent: "center",
+            shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+          }}
+        >
+          <Ionicons name={modoAnadirLugar ? "close" : "add"} size={30} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Instrucción modo añadir incidencia */}
       {modoAnadir && (
         <View style={{
           position: "absolute", bottom: 104, left: 24, right: 80,
@@ -241,6 +316,21 @@ export default function MapaScreen() {
           <Ionicons name="hand-left-outline" size={22} color={Colors.primary} />
           <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: "#374151", flex: 1 }}>
             Toca en el mapa para marcar la ubicación
+          </Text>
+        </View>
+      )}
+
+      {/* Instrucción modo añadir lugar */}
+      {modoAnadirLugar && (
+        <View style={{
+          position: "absolute", bottom: 104, left: 24, right: 80,
+          backgroundColor: "#fff", borderRadius: 16, padding: 14,
+          shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
+          flexDirection: "row", alignItems: "center", gap: 10,
+        }}>
+          <Ionicons name="hand-left-outline" size={22} color={Colors.secondary} />
+          <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: "#374151", flex: 1 }}>
+            Toca en el mapa para colocar el nuevo lugar
           </Text>
         </View>
       )}
@@ -350,13 +440,11 @@ export default function MapaScreen() {
                   <Ionicons name="close-circle" size={26} color="#d1d5db" />
                 </TouchableOpacity>
               </View>
-
               <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Categoría */}
                 <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 8 }}>Tipo</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                   <View style={{ flexDirection: "row", gap: 8 }}>
-                    {CATEGORIAS.map(cat => (
+                    {CATEGORIAS_INC.map(cat => (
                       <TouchableOpacity
                         key={cat}
                         onPress={() => setFormCategoria(cat)}
@@ -373,8 +461,6 @@ export default function MapaScreen() {
                     ))}
                   </View>
                 </ScrollView>
-
-                {/* Título */}
                 <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Título *</Text>
                 <TextInput
                   style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, fontFamily: "Inter_400Regular" }}
@@ -382,8 +468,6 @@ export default function MapaScreen() {
                   value={formTitulo}
                   onChangeText={setFormTitulo}
                 />
-
-                {/* Descripción */}
                 <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Descripción</Text>
                 <TextInput
                   style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, height: 80, textAlignVertical: "top", fontFamily: "Inter_400Regular" }}
@@ -392,8 +476,6 @@ export default function MapaScreen() {
                   onChangeText={setFormDescripcion}
                   multiline
                 />
-
-                {/* Dirección aproximada */}
                 <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Dirección aproximada</Text>
                 <TextInput
                   style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 24, fontFamily: "Inter_400Regular" }}
@@ -401,7 +483,6 @@ export default function MapaScreen() {
                   value={formDireccion}
                   onChangeText={setFormDireccion}
                 />
-
                 <TouchableOpacity
                   onPress={handleSubmit}
                   disabled={enviando}
@@ -409,6 +490,109 @@ export default function MapaScreen() {
                 >
                   <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 16 }}>
                     {enviando ? "Enviando..." : "Reportar incidencia"}
+                  </Text>
+                </TouchableOpacity>
+                <View style={{ height: 16 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal nuevo lugar (admin/ayuntamiento) */}
+      <Modal visible={modalLugarVisible} animationType="slide" transparent onRequestClose={resetFormLugar}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: "flex-end" }}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={resetFormLugar} />
+            <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "90%" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: "#111827" }}>Añadir lugar</Text>
+                <TouchableOpacity onPress={resetFormLugar}>
+                  <Ionicons name="close-circle" size={26} color="#d1d5db" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Categoría */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 8 }}>Tipo de lugar</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {CATEGORIAS_LUGAR.map(cat => {
+                      const cfg = LUGAR_CONFIG[cat];
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          onPress={() => setLugarCat(cat)}
+                          style={{
+                            paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5,
+                            borderColor: lugarCat === cat ? cfg.color : "#e5e7eb",
+                            backgroundColor: lugarCat === cat ? cfg.color + "15" : "#fff",
+                            flexDirection: "row", alignItems: "center", gap: 6,
+                          }}
+                        >
+                          <Ionicons name={cfg.icon as any} size={13} color={lugarCat === cat ? cfg.color : "#6b7280"} />
+                          <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: lugarCat === cat ? cfg.color : "#6b7280" }}>
+                            {cfg.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+
+                {/* Nombre */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Nombre *</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, fontFamily: "Inter_400Regular" }}
+                  placeholder="Ej: Parque de la Constitución"
+                  value={lugarNombre}
+                  onChangeText={setLugarNombre}
+                />
+
+                {/* Descripción */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Descripción</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, height: 70, textAlignVertical: "top", fontFamily: "Inter_400Regular" }}
+                  placeholder="Breve descripción del lugar..."
+                  value={lugarDesc}
+                  onChangeText={setLugarDesc}
+                  multiline
+                />
+
+                {/* Dirección */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Dirección</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, fontFamily: "Inter_400Regular" }}
+                  placeholder="Ej: Calle Mayor, 1"
+                  value={lugarDir}
+                  onChangeText={setLugarDir}
+                />
+
+                {/* Horario */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Horario</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 14, fontFamily: "Inter_400Regular" }}
+                  placeholder="Ej: L-V 9:00-14:00"
+                  value={lugarHorario}
+                  onChangeText={setLugarHorario}
+                />
+
+                {/* Teléfono */}
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#374151", marginBottom: 6 }}>Teléfono</Text>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#f9fafb", color: "#111827", marginBottom: 24, fontFamily: "Inter_400Regular" }}
+                  placeholder="Ej: 976 123 456"
+                  value={lugarTel}
+                  onChangeText={setLugarTel}
+                  keyboardType="phone-pad"
+                />
+
+                <TouchableOpacity
+                  onPress={handleSubmitLugar}
+                  disabled={enviandoLugar}
+                  style={{ backgroundColor: Colors.secondary, borderRadius: 14, paddingVertical: 16, alignItems: "center", opacity: enviandoLugar ? 0.7 : 1 }}
+                >
+                  <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 16 }}>
+                    {enviandoLugar ? "Guardando..." : "Añadir al mapa"}
                   </Text>
                 </TouchableOpacity>
                 <View style={{ height: 16 }} />
