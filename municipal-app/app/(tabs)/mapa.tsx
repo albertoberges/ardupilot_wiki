@@ -25,17 +25,17 @@ const MAPA_TIPOS: { tipo: MapType; icon: string; label: string }[] = [
   { tipo: "standard",      icon: "map-outline",       label: "Normal"   },
 ];
 
-const LUGAR_CONFIG: Record<string, { color: string; icon: string }> = {
-  ayuntamiento:  { color: "#1d4ed8", icon: "business" },
-  iglesia:       { color: "#92400e", icon: "triangle" },
-  parque:        { color: "#15803d", icon: "leaf" },
-  colegio:       { color: "#ea580c", icon: "school" },
-  farmacia:      { color: "#dc2626", icon: "medical" },
-  polideportivo: { color: "#0369a1", icon: "basketball" },
-  plaza:         { color: "#7c3aed", icon: "compass" },
-  mercado:       { color: "#d97706", icon: "basket" },
-  museo:         { color: "#b45309", icon: "book" },
-  otro:          { color: "#6b7280", icon: "location" },
+const LUGAR_CONFIG: Record<string, { color: string; icon: string; label: string }> = {
+  ayuntamiento:  { color: "#1d4ed8", icon: "business",    label: "Ayuntamiento" },
+  iglesia:       { color: "#92400e", icon: "triangle",    label: "Iglesia" },
+  parque:        { color: "#15803d", icon: "leaf",        label: "Parque" },
+  colegio:       { color: "#ea580c", icon: "school",      label: "Colegio" },
+  farmacia:      { color: "#dc2626", icon: "medical",     label: "Centro de Salud" },
+  polideportivo: { color: "#0369a1", icon: "basketball",  label: "Instalación Deportiva" },
+  plaza:         { color: "#7c3aed", icon: "compass",     label: "Plaza" },
+  mercado:       { color: "#d97706", icon: "basket",      label: "Mercado" },
+  museo:         { color: "#b45309", icon: "book",        label: "Centro Cultural" },
+  otro:          { color: "#6b7280", icon: "location",    label: "Lugar de interés" },
 };
 
 const CATEGORIAS: CategoriaIncidencia[] = [
@@ -265,8 +265,8 @@ export default function MapaScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: "#111827" }}>{lugarActivo.nombre}</Text>
-              <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular", textTransform: "capitalize" }}>
-                {lugarActivo.categoria.replace(/_/g, " ")}
+              <Text style={{ fontSize: 12, color: "#6b7280", fontFamily: "Inter_400Regular" }}>
+                {(LUGAR_CONFIG[lugarActivo.categoria] ?? LUGAR_CONFIG.otro).label}
               </Text>
             </View>
           </View>
