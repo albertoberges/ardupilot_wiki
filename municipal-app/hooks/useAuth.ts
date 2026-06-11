@@ -79,9 +79,19 @@ export function useAuth() {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
     if (result.type === "success") {
-      Alert.alert("Callback URL (debug)", result.url);
-      const { error } = await supabase.auth.exchangeCodeForSession(result.url);
-      if (error) throw error;
+      const fragment = result.url.split("#")[1] ?? "";
+      const params = Object.fromEntries(fragment.split("&").map(p => p.split("=")));
+      const access_token = params["access_token"];
+      const refresh_token = params["refresh_token"];
+
+      if (access_token && refresh_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (error) throw error;
+      } else {
+        // Fallback: try PKCE code exchange
+        const { error } = await supabase.auth.exchangeCodeForSession(result.url);
+        if (error) throw error;
+      }
     }
   }
 
