@@ -40,10 +40,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="incidencias"
+        name="ayuntamiento"
         options={{
-          title: "Incidencias",
-          tabBarIcon: ({ color, size }) => <Ionicons name="warning" size={size} color={color} />,
+          title: "Ayuntamiento",
+          tabBarIcon: ({ color, size }) => <Ionicons name="business" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -61,7 +61,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="tramites" options={{ href: null }} />
-      <Tabs.Screen name="ayuntamiento" options={{ href: null }} />
+      <Tabs.Screen name="incidencias" options={{ href: null }} />
       <Tabs.Screen name="eventos" options={{ href: null }} />
     </Tabs>
   );

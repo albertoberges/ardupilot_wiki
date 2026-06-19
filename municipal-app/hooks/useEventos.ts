@@ -37,6 +37,29 @@ export function useEventos(categoria?: CategoriaEvento) {
   return { eventos, loading, error, refreshing, refresh };
 }
 
+export function useEventosMes(mes: number, año: number) {
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    const inicio = new Date(año, mes, 1).toISOString();
+    const fin = new Date(año, mes + 1, 0, 23, 59, 59).toISOString();
+    const { data, error } = await supabase
+      .from("eventos")
+      .select("*")
+      .eq("publicado", true)
+      .gte("fecha_inicio", inicio)
+      .lte("fecha_inicio", fin)
+      .order("fecha_inicio", { ascending: true });
+    if (!error) setEventos(data ?? []);
+    setLoading(false);
+  }, [mes, año]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return { eventos, loading };
+}
+
 export function useEvento(id: string) {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [loading, setLoading] = useState(true);

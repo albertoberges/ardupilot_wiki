@@ -62,6 +62,9 @@ export default function RootLayout() {
         <Stack.Screen name="incidencia/[id]" options={{ title: "Incidencia" }} />
         <Stack.Screen name="incidencia/nueva" options={{ title: "Nueva Incidencia", presentation: "modal" }} />
         <Stack.Screen name="(tabs)/mapa" options={{ title: "Mapa de incidencias", headerShown: true }} />
+        <Stack.Screen name="mercado" options={{ title: "Mercado Local" }} />
+        <Stack.Screen name="empresas" options={{ title: "Empresas de Villamayor" }} />
+        <Stack.Screen name="anuncio/[id]" options={{ title: "Anuncio" }} />
         <Stack.Screen name="+not-found" options={{ title: "No encontrado" }} />
       </Stack>
     </>
