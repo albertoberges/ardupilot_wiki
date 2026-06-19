@@ -1,4 +1,14 @@
+# === Dependencias principales ===
 PyQt6>=6.4.0
 numpy>=1.21.0
 matplotlib>=3.5.0
 pyserial>=3.5
+opencv-python>=4.7.0
+
+# === Visión IA (recomendado) ===
+# YOLO v8 — se descarga automáticamente al primer uso (~6 MB)
+ultralytics>=8.0.0
+
+# === Cámara de profundidad (opcional) ===
+# Intel RealSense D435i — instalar solo si se dispone del hardware
+# pyrealsense2>=2.54.0

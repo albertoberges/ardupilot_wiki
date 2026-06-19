@@ -19,6 +19,7 @@ from gui.robot_view import RobotView3D
 from gui.status_panel import StatusPanel
 from gui.jog_panel import JogPanel
 from gui.program_panel import ProgramPanel
+from gui.vision_panel import VisionPanel
 from gui.styles import MAIN_STYLE, ESTOP_STYLE
 
 
@@ -255,16 +256,25 @@ class MainWindow(QMainWindow):
         h_splitter.addWidget(self._jog_panel)
         h_splitter.setSizes([1000, 280])
 
-        # Splitter vertical: vista + programa
+        # Splitter vertical: vista + tabs inferiores
         v_splitter = QSplitter(Qt.Orientation.Vertical)
         v_splitter.addWidget(h_splitter)
 
-        # Panel de programa (abajo)
+        # Tabs inferiores: Programa | Visión IA
+        from PyQt6.QtWidgets import QTabWidget
+        bottom_tabs = QTabWidget()
+        bottom_tabs.setMinimumHeight(220)
+
         self._program_panel = ProgramPanel(self.robot, self.comm)
         self._program_panel.robot_moved.connect(self._on_robot_moved)
-        self._program_panel.setMinimumHeight(200)
-        v_splitter.addWidget(self._program_panel)
-        v_splitter.setSizes([600, 280])
+        bottom_tabs.addTab(self._program_panel, "📋  Programa")
+
+        self._vision_panel = VisionPanel(self.robot, self.comm)
+        self._vision_panel.robot_moved.connect(self._on_robot_moved)
+        bottom_tabs.addTab(self._vision_panel, "📷  Visión IA")
+
+        v_splitter.addWidget(bottom_tabs)
+        v_splitter.setSizes([600, 300])
 
         central_layout.addWidget(v_splitter)
         self.setCentralWidget(central)
