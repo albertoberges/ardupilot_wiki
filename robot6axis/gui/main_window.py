@@ -259,11 +259,25 @@ class MainWindow(QMainWindow):
         # Splitter vertical: vista + tabs inferiores
         v_splitter = QSplitter(Qt.Orientation.Vertical)
         v_splitter.addWidget(h_splitter)
+        # Handle más ancho y visible para facilitar el arrastre en macOS
+        v_splitter.setHandleWidth(8)
+        v_splitter.setStyleSheet("""
+            QSplitter::handle:vertical {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #0f3460, stop:0.4 #0078d4, stop:0.6 #0078d4, stop:1 #0f3460);
+                height: 8px;
+                border-radius: 4px;
+                margin: 2px 20px;
+            }
+            QSplitter::handle:vertical:hover {
+                background: #00aaff;
+            }
+        """)
 
         # Tabs inferiores: Programa | Visión IA
         from PyQt6.QtWidgets import QTabWidget
         bottom_tabs = QTabWidget()
-        bottom_tabs.setMinimumHeight(220)
+        bottom_tabs.setMinimumHeight(120)
 
         self._program_panel = ProgramPanel(self.robot, self.comm)
         self._program_panel.robot_moved.connect(self._on_robot_moved)
@@ -274,7 +288,10 @@ class MainWindow(QMainWindow):
         bottom_tabs.addTab(self._vision_panel, "📷  Visión IA")
 
         v_splitter.addWidget(bottom_tabs)
-        v_splitter.setSizes([600, 300])
+        # Dar más espacio inicial al panel inferior (40% arriba, 60% abajo)
+        v_splitter.setSizes([400, 500])
+        v_splitter.setCollapsible(0, False)
+        v_splitter.setCollapsible(1, False)
 
         central_layout.addWidget(v_splitter)
         self.setCentralWidget(central)
