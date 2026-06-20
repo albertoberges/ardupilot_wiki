@@ -12,9 +12,8 @@ from typing import Optional, List
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QComboBox, QGroupBox, QListWidget, QListWidgetItem,
-    QSplitter, QCheckBox, QDialog, QGridLayout,
-    QDoubleSpinBox, QDialogButtonBox, QMessageBox, QTextEdit,
-    QFrame, QScrollArea
+    QSplitter, QCheckBox, QMessageBox, QTextEdit,
+    QFrame
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QImage, QPixmap, QFont, QColor
@@ -29,6 +28,7 @@ from vision.camera  import create_camera, list_available_cameras, BaseCamera, Ca
 from vision.detector import ObjectDetector, Detection
 from vision.pose_estimator import PoseEstimator
 from vision.calibration    import HandEyeCalibration
+from gui.calibration_wizard import CalibrationWizard
 
 
 # ================================================================== #
@@ -472,9 +472,13 @@ class VisionPanel(QWidget):
     # ------------------------------------------------------------------ #
 
     def _open_calibration(self):
-        dlg = CalibrationWizard(self.robot, self._camera, self._calibration, self)
+        dlg = CalibrationWizard(
+            self.robot, self._camera, self._calibration,
+            frame_provider=lambda: self._frame,
+            comm=self.comm,
+            parent=self,
+        )
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self._calibration.save()
             if self._pose_estimator:
                 self._pose_estimator.calibration = self._calibration
             self._cal_lbl.setText(self._calibration.status_text())
@@ -525,198 +529,3 @@ class VisionPanel(QWidget):
             + checked
         )
 
-
-# ================================================================== #
-# Asistente de calibración                                            #
-# ================================================================== #
-
-class CalibrationWizard(QDialog):
-    """
-    Guía paso a paso la recogida de correspondencias para la calibración
-    mano-ojo. Permite también configurar la posición de la cámara
-    manualmente si no se quiere hacer calibración completa.
-    """
-
-    def __init__(self, robot, camera, calibration: HandEyeCalibration, parent=None):
-        super().__init__(parent)
-        self.robot       = robot
-        self.camera      = camera
-        self.calibration = calibration
-        self.calibration.clear_points()
-
-        self.setWindowTitle("Asistente de Calibración Cámara ↔ Robot")
-        self.setMinimumSize(540, 480)
-        if parent:
-            self.setStyleSheet(parent.styleSheet())
-
-        self._setup_ui()
-
-    def _setup_ui(self):
-        lay = QVBoxLayout(self)
-
-        # Instrucciones
-        info = QLabel(
-            "<b>Procedimiento de calibración mano-ojo:</b><br><br>"
-            "1. Coloca un punto de referencia (ej. un tornillo) en la mesa.<br>"
-            "2. Mueve el robot con el panel de Jog hasta que la herramienta<br>"
-            "   toque exactamente ese punto.<br>"
-            "3. Pulsa <b>«+ Registrar punto»</b> para guardar la correspondencia.<br>"
-            "4. Mueve el punto de referencia a otra posición y repite.<br>"
-            "5. Con ≥8 puntos pulsa <b>«Calcular calibración»</b>.<br><br>"
-            "<i>Cuanto más dispersos estén los puntos, mejor será el resultado.</i>"
-        )
-        info.setWordWrap(True)
-        info.setStyleSheet("color:#a0b0c0; padding:8px; font-size:12px;")
-        lay.addWidget(info)
-
-        # Estado
-        self._status_lbl = QLabel(f"Puntos: 0  (mínimo {HandEyeCalibration.MIN_POINTS})")
-        self._status_lbl.setStyleSheet("color:#7ec8e3; font-weight:bold; padding:4px;")
-        lay.addWidget(self._status_lbl)
-
-        # Lista de puntos
-        self._pts_list = QListWidget()
-        self._pts_list.setMaximumHeight(160)
-        self._pts_list.setStyleSheet(
-            "QListWidget { background:#0a0f15; border:1px solid #0f3460; }"
-            "QListWidget::item { padding:3px; }"
-        )
-        lay.addWidget(self._pts_list)
-
-        # Controles
-        btn_row = QHBoxLayout()
-
-        add_btn = QPushButton("+ Registrar punto")
-        add_btn.setStyleSheet(
-            "QPushButton { background:#004d20; color:#80ffb0; "
-            "border:1px solid #007a33; padding:6px 12px; border-radius:4px; }"
-            "QPushButton:hover { background:#007a33; }"
-        )
-        add_btn.clicked.connect(self._add_point)
-        btn_row.addWidget(add_btn)
-
-        undo_btn = QPushButton("↩ Deshacer último")
-        undo_btn.clicked.connect(self._undo_point)
-        btn_row.addWidget(undo_btn)
-
-        calc_btn = QPushButton("✓ Calcular calibración")
-        calc_btn.setStyleSheet(
-            "QPushButton { background:#003060; color:#80c0ff; "
-            "border:1px solid #0060c0; padding:6px 12px; border-radius:4px; }"
-            "QPushButton:hover { background:#0060c0; }"
-        )
-        calc_btn.clicked.connect(self._compute)
-        btn_row.addWidget(calc_btn)
-        lay.addLayout(btn_row)
-
-        # Separador
-        sep = QFrame(frameShape=QFrame.Shape.HLine)
-        sep.setStyleSheet("color:#0f3460;")
-        lay.addWidget(sep)
-
-        # Configuración rápida de offset de cámara
-        quick_box = QGroupBox("Configuración rápida (sin calibración completa)")
-        quick_lay = QGridLayout(quick_box)
-        quick_lay.setSpacing(6)
-
-        self._offsets: dict = {}
-        for row, (name, unit, default) in enumerate([
-            ("Offset X cámara", "mm",  0.0),
-            ("Offset Y cámara", "mm",  200.0),
-            ("Altura cámara Z", "mm",  600.0),
-            ("Offset Z objeto (mesa)", "mm", 0.0),
-        ]):
-            quick_lay.addWidget(QLabel(name + ":"), row, 0)
-            spin = QDoubleSpinBox()
-            spin.setRange(-2000, 2000)
-            spin.setValue(default)
-            spin.setSuffix(f" {unit}")
-            quick_lay.addWidget(spin, row, 1)
-            quick_lay.addWidget(QLabel(unit), row, 2)
-            self._offsets[name] = spin
-
-        apply_quick = QPushButton("Aplicar configuración rápida")
-        apply_quick.clicked.connect(self._apply_quick)
-        quick_lay.addWidget(apply_quick, len(self._offsets), 0, 1, 3)
-        lay.addWidget(quick_box)
-
-        # Resultado
-        self._result_lbl = QLabel("")
-        self._result_lbl.setStyleSheet("padding:4px;")
-        self._result_lbl.setWordWrap(True)
-        lay.addWidget(self._result_lbl)
-
-        # Botones OK / Cancelar
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
-        )
-        btns.accepted.connect(self.accept)
-        btns.rejected.connect(self.reject)
-        lay.addWidget(btns)
-
-    def _add_point(self):
-        """Registra la posición actual del robot como punto de calibración."""
-        T = self.robot.forward_kinematics()
-        robot_xyz = T[:3, 3].copy()
-
-        # Para la correspondencia en cámara necesitaríamos el píxel y la profundidad.
-        # Aquí usamos una estimación de la cámara simulada si está disponible;
-        # en hardware real el usuario debería marcar el punto en la imagen.
-        if hasattr(self.camera, 'get_true_positions_3d'):
-            # Cámara simulada: podemos conocer la posición real
-            cam_xyz = np.array([robot_xyz[0], robot_xyz[1],
-                                getattr(self.camera, 'TABLE_DEPTH_MM', 500.0)])
-        else:
-            cam_xyz = np.array([0.0, 0.0, 500.0])  # placeholder
-
-        self.calibration.add_point(robot_xyz, cam_xyz)
-        n = self.calibration.num_points
-        self._pts_list.addItem(
-            f"P{n}  Robot: [{robot_xyz[0]:.1f}, {robot_xyz[1]:.1f}, "
-            f"{robot_xyz[2]:.1f}] mm"
-        )
-        self._status_lbl.setText(
-            f"Puntos: {n}  (mínimo {HandEyeCalibration.MIN_POINTS})"
-        )
-
-    def _undo_point(self):
-        self.calibration.remove_last_point()
-        if self._pts_list.count() > 0:
-            self._pts_list.takeItem(self._pts_list.count() - 1)
-        n = self.calibration.num_points
-        self._status_lbl.setText(f"Puntos: {n}")
-
-    def _compute(self):
-        ok, msg = self.calibration.compute()
-        color = "#00ff88" if ok else "#ff4444"
-        self._result_lbl.setStyleSheet(f"color:{color}; padding:4px;")
-        self._result_lbl.setText(msg)
-
-    def _apply_quick(self):
-        """
-        Aplica la transformada analítica basada en los offsets configurados.
-        Crea una transformada de cámara-mirando-hacia-abajo con los offsets dados.
-        """
-        ox = self._offsets["Offset X cámara"].value()
-        oy = self._offsets["Offset Y cámara"].value()
-        oz = self._offsets["Altura cámara Z"].value()
-
-        # Transformada: cámara mirando hacia abajo (eje Z de cámara → -Z robot)
-        R = np.array([
-            [1,  0,  0],
-            [0, -1,  0],
-            [0,  0, -1],
-        ], dtype=float)
-        t = np.array([ox, oy, oz])
-
-        self.calibration._T = np.eye(4)
-        self.calibration._T[:3, :3] = R
-        self.calibration._T[:3,  3] = t
-        self.calibration._error_mm  = float("nan")
-
-        self._result_lbl.setStyleSheet("color:#ffb040; padding:4px;")
-        self._result_lbl.setText(
-            "✓ Configuración rápida aplicada.\n"
-            "Para mayor precisión, realice la calibración completa."
-        )
