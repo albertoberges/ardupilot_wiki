@@ -71,6 +71,12 @@ class RobotView3D(QWidget):
     def update_robot(self, q_deg=None):
         """Redibuja el robot con los ángulos dados."""
         ax = self.ax
+
+        # Guardar posición de cámara antes de limpiar
+        elev = ax.elev
+        azim = ax.azim
+        dist = getattr(ax, "dist", 10.0)
+
         ax.cla()
         self._style_axes()
 
@@ -121,6 +127,12 @@ class RobotView3D(QWidget):
             f"TCP: X={T[0,3]:.1f}  Y={T[1,3]:.1f}  Z={T[2,3]:.1f} mm",
             color="#7ec8e3", fontsize=10, pad=10
         )
+
+        # Restaurar posición de cámara (preserva zoom y rotación del usuario)
+        ax.elev = elev
+        ax.azim = azim
+        if hasattr(ax, "dist"):
+            ax.dist = dist
 
         self.canvas.draw_idle()
 
