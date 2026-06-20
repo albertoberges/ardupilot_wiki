@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QStatusBar, QToolBar, QComboBox,
     QSplitter, QFrame, QSizePolicy, QMessageBox, QDialog,
-    QGridLayout, QSlider, QApplication
+    QGridLayout, QSlider, QApplication, QStackedWidget, QTabWidget
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize
 from PyQt6.QtGui import QAction, QFont, QColor, QIcon
@@ -235,20 +235,32 @@ class MainWindow(QMainWindow):
         speed_layout.addWidget(self._global_speed_lbl)
         self._toolbar.addWidget(speed_widget)
 
-        # ---- Área central: splitter 3D | Jog ---- #
-        central = QWidget()
-        central_layout = QVBoxLayout(central)
-        central_layout.setContentsMargins(0, 0, 0, 0)
-        central_layout.setSpacing(0)
+        # ================================================================ #
+        # Layout principal: barra lateral de navegación + área de vistas  #
+        # ================================================================ #
+        root = QWidget()
+        root_layout = QHBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        # Splitter horizontal: vista 3D + jog panel
+        # ---- Barra lateral izquierda de navegación ---- #
+        nav_bar = self._build_nav_bar()
+        root_layout.addWidget(nav_bar)
+
+        # ---- Stack de vistas (cambia según el botón pulsado) ---- #
+        self._stack = QStackedWidget()
+        root_layout.addWidget(self._stack, 1)
+
+        # ── Vista 0: Control del robot (3D + Jog + Programa) ── #
+        control_view = QWidget()
+        cv_layout = QVBoxLayout(control_view)
+        cv_layout.setContentsMargins(0, 0, 0, 0)
+        cv_layout.setSpacing(0)
+
         h_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        # Vista 3D (centro)
         self._robot_view = RobotView3D(self.robot)
         h_splitter.addWidget(self._robot_view)
 
-        # Panel de jog (derecha)
         self._jog_panel = JogPanel(self.robot, self.comm)
         self._jog_panel.robot_moved.connect(self._on_robot_moved)
         self._jog_panel.setMinimumWidth(230)
@@ -256,60 +268,116 @@ class MainWindow(QMainWindow):
         h_splitter.addWidget(self._jog_panel)
         h_splitter.setSizes([1000, 280])
 
-        # Splitter vertical: vista + tabs inferiores
-        v_splitter = QSplitter(Qt.Orientation.Vertical)
-        v_splitter.addWidget(h_splitter)
-        # Handle más ancho y visible para facilitar el arrastre en macOS
-        v_splitter.setHandleWidth(8)
-        v_splitter.setStyleSheet("""
-            QSplitter::handle:vertical {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #0f3460, stop:0.4 #0078d4, stop:0.6 #0078d4, stop:1 #0f3460);
-                height: 8px;
-                border-radius: 4px;
-                margin: 2px 20px;
-            }
-            QSplitter::handle:vertical:hover {
-                background: #00aaff;
-            }
-        """)
-
-        # Tabs inferiores: Programa | Visión IA
-        from PyQt6.QtWidgets import QTabWidget
-        bottom_tabs = QTabWidget()
-        bottom_tabs.setMinimumHeight(120)
-
         self._program_panel = ProgramPanel(self.robot, self.comm)
         self._program_panel.robot_moved.connect(self._on_robot_moved)
-        bottom_tabs.addTab(self._program_panel, "📋  Programa")
+        self._program_panel.setMinimumHeight(180)
+        self._program_panel.setMaximumHeight(340)
 
-        self._vision_panel = VisionPanel(self.robot, self.comm)
-        self._vision_panel.robot_moved.connect(self._on_robot_moved)
-        bottom_tabs.addTab(self._vision_panel, "📷  Visión IA")
-
-        v_splitter.addWidget(bottom_tabs)
-        # Dar más espacio inicial al panel inferior (40% arriba, 60% abajo)
-        v_splitter.setSizes([400, 500])
+        v_splitter = QSplitter(Qt.Orientation.Vertical)
+        v_splitter.setHandleWidth(6)
+        v_splitter.setStyleSheet("""
+            QSplitter::handle:vertical {
+                background: #0078d4; height: 6px;
+                border-radius: 3px; margin: 1px 40px;
+            }
+            QSplitter::handle:vertical:hover { background: #00aaff; }
+        """)
+        v_splitter.addWidget(h_splitter)
+        v_splitter.addWidget(self._program_panel)
+        v_splitter.setSizes([650, 250])
         v_splitter.setCollapsible(0, False)
         v_splitter.setCollapsible(1, False)
 
-        central_layout.addWidget(v_splitter)
-        self.setCentralWidget(central)
+        cv_layout.addWidget(v_splitter)
+        self._stack.addWidget(control_view)       # índice 0
 
-        # ---- Dock: panel de estado (izquierda) ---- #
+        # ── Vista 1: Estado del robot (posición detallada) ── #
         self._status_panel = StatusPanel(self.robot)
-        status_dock = QDockWidget("ESTADO DEL ROBOT")
-        status_dock.setWidget(self._status_panel)
-        status_dock.setMinimumWidth(270)
-        status_dock.setMaximumWidth(350)
-        status_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, status_dock)
+        status_scroll = QWidget()
+        ss_layout = QVBoxLayout(status_scroll)
+        ss_layout.setContentsMargins(12, 12, 12, 12)
+        ss_layout.addWidget(self._status_panel)
+        ss_layout.addStretch()
+        self._stack.addWidget(status_scroll)      # índice 1
+
+        # ── Vista 2: Visión IA (pantalla completa) ── #
+        self._vision_panel = VisionPanel(self.robot, self.comm)
+        self._vision_panel.robot_moved.connect(self._on_robot_moved)
+        self._stack.addWidget(self._vision_panel) # índice 2
+
+        self._stack.setCurrentIndex(0)
+        self.setCentralWidget(root)
 
         # Conectar teach desde jog panel
         self._jog_panel.teach_requested = self._program_panel.teach_current_point
+
+    def _build_nav_bar(self) -> QWidget:
+        """Barra lateral izquierda con botones de navegación entre vistas."""
+        bar = QWidget()
+        bar.setFixedWidth(72)
+        bar.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0a1628, stop:1 #0f2040);
+                border-right: 2px solid #0078d4;
+            }
+        """)
+        layout = QVBoxLayout(bar)
+        layout.setContentsMargins(6, 12, 6, 12)
+        layout.setSpacing(6)
+
+        self._nav_buttons = []
+        nav_items = [
+            ("🤖", "Control\nRobot",  0, "#0078d4"),
+            ("📊", "Estado",          1, "#00aa88"),
+            ("📷", "Visión\nIA",      2, "#9040e0"),
+        ]
+
+        for icon, label, idx, color in nav_items:
+            btn = QPushButton(f"{icon}\n{label}")
+            btn.setCheckable(True)
+            btn.setFixedSize(60, 68)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: #507090;
+                    border: 1px solid transparent;
+                    border-radius: 8px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    padding: 4px 2px;
+                }}
+                QPushButton:hover {{
+                    background: #0f2850;
+                    color: #a0c0e0;
+                    border-color: #1a4a8a;
+                }}
+                QPushButton:checked {{
+                    background: {color}22;
+                    color: {color};
+                    border: 2px solid {color};
+                }}
+            """)
+            btn.clicked.connect(lambda _, i=idx: self._switch_view(i))
+            layout.addWidget(btn)
+            self._nav_buttons.append(btn)
+
+        layout.addStretch()
+
+        # Versión al pie
+        ver = QLabel("v1.0")
+        ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ver.setStyleSheet("color: #2a4060; font-size: 10px;")
+        layout.addWidget(ver)
+
+        self._nav_buttons[0].setChecked(True)
+        return bar
+
+    def _switch_view(self, idx: int):
+        """Cambia la vista activa y actualiza el estado de los botones."""
+        self._stack.setCurrentIndex(idx)
+        for i, btn in enumerate(self._nav_buttons):
+            btn.setChecked(i == idx)
 
     def _setup_menu(self):
         menubar = self.menuBar()
