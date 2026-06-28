@@ -36,6 +36,20 @@ export function useNoticias(categoria?: CategoriaNoticia) {
   return { noticias, loading, error, refreshing, refresh };
 }
 
+export async function crearNoticia(payload: {
+  titulo: string; resumen: string; contenido: string;
+  categoria: CategoriaNoticia; imagen_url?: string;
+  destacada?: boolean; autor_id: string;
+}) {
+  const { data, error } = await supabase
+    .from("noticias")
+    .insert({ ...payload, publicado: true })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export function useNoticia(id: string) {
   const [noticia, setNoticia] = useState<Noticia | null>(null);
   const [loading, setLoading] = useState(true);

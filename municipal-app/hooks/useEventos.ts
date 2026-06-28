@@ -60,6 +60,20 @@ export function useEventosMes(mes: number, año: number) {
   return { eventos, loading };
 }
 
+export async function crearEvento(payload: {
+  titulo: string; descripcion: string; categoria: CategoriaEvento;
+  fecha_inicio: string; fecha_fin?: string; lugar: string;
+  direccion?: string; precio?: number; organizador: string;
+}) {
+  const { data, error } = await supabase
+    .from("eventos")
+    .insert({ ...payload, publicado: true })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export function useEvento(id: string) {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [loading, setLoading] = useState(true);

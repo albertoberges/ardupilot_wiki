@@ -93,6 +93,20 @@ export default function PerfilScreen() {
           label="Mis incidencias"
           onPress={() => router.push("/(tabs)/incidencias")}
         />
+        {profile.role === "empresa" && (
+          <MenuItem
+            icon="briefcase-outline"
+            label="Mi empresa"
+            onPress={() => router.push("/mi-empresa" as any)}
+          />
+        )}
+        {(profile.role === "ayuntamiento" || profile.role === "admin" || profile.role === "asociacion") && (
+          <MenuItem
+            icon="newspaper-outline"
+            label="Publicar noticia"
+            onPress={() => router.push("/noticia/nueva" as any)}
+          />
+        )}
       </View>
 
       <View className="mt-4 rounded-xl overflow-hidden mx-4 shadow-sm" style={{ elevation: 2 }}>
