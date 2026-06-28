@@ -85,11 +85,13 @@ export default function AgendaScreen() {
       Alert.alert("Faltan datos", "Título, fecha y lugar son obligatorios.");
       return;
     }
-    const fechaISO = new Date(`${fechaStr}T${horaStr}:00`).toISOString();
-    if (isNaN(new Date(fechaISO).getTime())) {
+    const fechaParsed = parseFecha(fechaStr);
+    const fechaDate = new Date(`${fechaParsed}T${horaStr}:00`);
+    if (isNaN(fechaDate.getTime())) {
       Alert.alert("Fecha inválida", "Usa el formato DD/MM/AAAA");
       return;
     }
+    const fechaISO = fechaDate.toISOString();
     setGuardando(true);
     try {
       await crearEvento({

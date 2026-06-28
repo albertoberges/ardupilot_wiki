@@ -56,7 +56,7 @@ export default function MapaScreen() {
 
   const [capa, setCapa] = useState<Capa>("lugares");
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
-  const [tipoMapaIdx, setTipoMapaIdx] = useState(0);
+  const [tipoMapaIdx, setTipoMapaIdx] = useState(2);
 
   // — Añadir incidencia —
   const [modoAnadir, setModoAnadir] = useState(false);
