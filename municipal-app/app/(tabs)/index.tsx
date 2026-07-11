@@ -2,19 +2,23 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useNoticias } from "@/hooks/useNoticias";
+import { useAuth } from "@/hooks/useAuth";
 import { NoticiaCard } from "@/components/NoticiaCard";
 import { Colors } from "@/constants/colors";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { profile } = useAuth();
   const { noticias, loading, refreshing, refresh } = useNoticias();
+  const puedePublicar = ["ayuntamiento", "admin", "asociacion"].includes(profile?.role ?? "");
 
   const destacadas = noticias.filter((n) => n.destacada).slice(0, 2);
   const resto = noticias.filter((n) => !n.destacada).slice(0, 10);
 
   return (
+    <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+      style={{ flex: 1 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.primary} />}
     >
       {/* Accesos rápidos */}
@@ -110,7 +114,22 @@ export default function HomeScreen() {
           : resto.map((n) => <NoticiaCard key={n.id} noticia={n} />)}
       </View>
 
-      <View style={{ height: 24 }} />
+      <View style={{ height: 80 }} />
     </ScrollView>
+
+    {puedePublicar && (
+      <TouchableOpacity
+        onPress={() => router.push("/noticia/nueva" as any)}
+        style={{
+          position: "absolute", bottom: 24, right: 20,
+          backgroundColor: Colors.primary, width: 56, height: 56, borderRadius: 28,
+          alignItems: "center", justifyContent: "center",
+          elevation: 6, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+        }}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+    )}
+    </View>
   );
 }
