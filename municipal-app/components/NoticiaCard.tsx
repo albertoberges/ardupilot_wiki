@@ -1,8 +1,8 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { Noticia } from "@/lib/types";
-import { Badge } from "./ui/Badge";
 import { CategoryLabels } from "@/lib/labels";
+import { CategoryColors, Colors } from "@/constants/colors";
 import { formatDate } from "@/lib/utils";
 
 interface NoticiaCardProps {
@@ -10,28 +10,52 @@ interface NoticiaCardProps {
   destacada?: boolean;
 }
 
+function CategoryBadge({ categoria }: { categoria: string }) {
+  const color = CategoryColors[categoria] ?? Colors.textLight;
+  const label = CategoryLabels.noticia?.[categoria as keyof typeof CategoryLabels.noticia] ?? categoria;
+  return (
+    <View style={{ backgroundColor: color + "18", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" }}>
+      <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color, textTransform: "uppercase", letterSpacing: 0.3 }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export function NoticiaCard({ noticia, destacada = false }: NoticiaCardProps) {
   const router = useRouter();
+  const catColor = CategoryColors[noticia.categoria] ?? Colors.textLight;
 
   if (destacada) {
     return (
       <TouchableOpacity
-        className="mx-4 mb-4 rounded-2xl overflow-hidden bg-white shadow-sm"
-        style={{ elevation: 3 }}
+        activeOpacity={0.75}
         onPress={() => router.push(`/noticia/${noticia.id}`)}
+        style={{
+          marginHorizontal: 16, marginBottom: 12, borderRadius: 18,
+          backgroundColor: Colors.card, overflow: "hidden",
+          shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 }, elevation: 3,
+        }}
       >
-        {noticia.imagen_url && (
-          <Image
-            source={{ uri: noticia.imagen_url }}
-            className="w-full h-48"
-            resizeMode="cover"
-          />
-        )}
-        <View className="p-4">
-          <Badge label={CategoryLabels.noticia[noticia.categoria]} category={noticia.categoria} size="sm" />
-          <Text className="text-lg font-bold text-gray-900 mt-2 leading-tight">{noticia.titulo}</Text>
-          <Text className="text-gray-500 mt-1 text-sm" numberOfLines={2}>{noticia.resumen}</Text>
-          <Text className="text-gray-400 text-xs mt-2">{formatDate(noticia.created_at)}</Text>
+        {noticia.imagen_url
+          ? <Image source={{ uri: noticia.imagen_url }} style={{ width: "100%", height: 200 }} resizeMode="cover" />
+          : <View style={{ width: "100%", height: 140, backgroundColor: catColor + "18", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: catColor + "30", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: catColor }} />
+              </View>
+            </View>}
+        <View style={{ padding: 16 }}>
+          <CategoryBadge categoria={noticia.categoria} />
+          <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginTop: 8, lineHeight: 24, letterSpacing: -0.3 }}>
+            {noticia.titulo}
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary, marginTop: 6, lineHeight: 20 }} numberOfLines={2}>
+            {noticia.resumen}
+          </Text>
+          <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textLight, marginTop: 10 }}>
+            {formatDate(noticia.created_at)}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -39,25 +63,29 @@ export function NoticiaCard({ noticia, destacada = false }: NoticiaCardProps) {
 
   return (
     <TouchableOpacity
-      className="mx-4 mb-3 rounded-xl overflow-hidden bg-white shadow-sm flex-row"
-      style={{ elevation: 2 }}
+      activeOpacity={0.75}
       onPress={() => router.push(`/noticia/${noticia.id}`)}
+      style={{
+        marginHorizontal: 16, marginBottom: 10, borderRadius: 14,
+        backgroundColor: Colors.card, overflow: "hidden", flexDirection: "row",
+        shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        borderLeftWidth: 3, borderLeftColor: catColor,
+      }}
     >
       {noticia.imagen_url && (
-        <Image
-          source={{ uri: noticia.imagen_url }}
-          className="w-24 h-24"
-          resizeMode="cover"
-        />
+        <Image source={{ uri: noticia.imagen_url }} style={{ width: 88, height: 88 }} resizeMode="cover" />
       )}
-      <View className="flex-1 p-3 justify-between">
+      <View style={{ flex: 1, padding: 12, justifyContent: "space-between" }}>
         <View>
-          <Badge label={CategoryLabels.noticia[noticia.categoria]} category={noticia.categoria} size="sm" />
-          <Text className="text-sm font-semibold text-gray-900 mt-1 leading-tight" numberOfLines={2}>
+          <CategoryBadge categoria={noticia.categoria} />
+          <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, marginTop: 6, lineHeight: 19, letterSpacing: -0.1 }} numberOfLines={2}>
             {noticia.titulo}
           </Text>
         </View>
-        <Text className="text-gray-400 text-xs">{formatDate(noticia.created_at)}</Text>
+        <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textLight }}>
+          {formatDate(noticia.created_at)}
+        </Text>
       </View>
     </TouchableOpacity>
   );
